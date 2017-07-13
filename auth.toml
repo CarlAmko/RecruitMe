@@ -1,0 +1,6 @@
+# Private API key for using Mail Gun
+MailGunAPIKey = "YOUR_API_KEY_HERE"
+# Public API key for using Mail Gun
+MailGunPublicAPIKey = "YOUR_API_KEY_HERE"
+# Mailgun Domain
+MailGunDomain = "YOUR_DOMAIN_HERE"
