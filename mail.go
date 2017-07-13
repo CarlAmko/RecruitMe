@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"bufio"
+	"log"
 )
 
 type Auth struct {
@@ -17,26 +18,21 @@ type Auth struct {
 	MailGunDomain string
 }
 
-type Config struct {
-	AttachResume bool
-	ResumeFormat string
+type Defaults struct {
 	Author string
 }
 
 type EmailTemplate struct {
+	Targets []string
 	Subject string
 	Body string
+	Attachments []string
 	Inputs map[string]string
 }
 
-// Mailgun instance object
 var mg mailgun.Mailgun
-
-// Auth object
 var auth Auth
-
-// Config object
-var config Config
+var defaults Defaults
 
 var templates map[string]*EmailTemplate = make(map[string]*EmailTemplate)
 
@@ -96,14 +92,15 @@ func fillInputResponses() {
 			template.Body = strings.Replace(template.Body, fmt.Sprintf("$%s$", input), data, -1)
 		}
 
-		fmt.Println(template)
+		fmt.Println(template.Subject)
+		fmt.Println(template.Body)
 	}
 }
 
 func fillTemplateFromConfig(template * EmailTemplate, input string) bool{
 	lower := strings.ToLower(input)
-	if lower == "author" || lower == "authorname" {
-		template.Inputs[input] = config.Author
+	if len(defaults.Author) > 0 && (lower == "author" || lower == "authorname") {
+		template.Inputs[input] = defaults.Author
 	} else {
 		return false
 	}
@@ -117,13 +114,16 @@ func main() {
 		return
 	}
 
-	if _, err := toml.DecodeFile("config.toml", &config); err != nil {
-		fmt.Printf("Error while parsing config TOML: %s.\n", err)
-		return
+	if _, err := toml.DecodeFile("template_defaults.toml", &defaults); err != nil {
+		fmt.Printf("Error while parsing template defaults TOML: %s.\n", err)
 	}
 
 	// Connect to MailGun with parsed Auth configuration.
 	mg = mailgun.NewMailgun(auth.MailGunDomain, auth.MailGunAPIKey, auth.MailGunPublicAPIKey)
+	if mg == nil {
+		fmt.Println("Error while attempting to make MailGun connection.")
+		return
+	}
 
 	// Parses all email templates located in "templates" sub-directory.
 	filepath.Walk("./templates", parseTemplates)
@@ -131,9 +131,27 @@ func main() {
 	// Generate input responses.
 	fillInputResponses()
 
-	//mg.NewMessage(
-	//	fmt.Sprintf("%s <mailgun@%s>", auth.AuthorName, auth.MailGunDomain),
-	//	""
-	//)
+	for _, template := range templates {
+		// Send message to each target.
+		for _, target := range template.Targets {
+			// Ensure that the target email is valid.
+			 if validateEmail(target) {
+				 msg := mg.NewMessage(
+					 fmt.Sprintf("%s <mailgun@%s>", defaults.Author, auth.MailGunDomain),
+					 template.Subject,
+					 template.Body,
+					 target)
 
+				 for _, filename := range template.Attachments {
+					 msg.AddAttachment(fmt.Sprintf("attachments/%s", filename))
+				 }
+
+				 // Send the message.
+				 if _, _, err := mg.Send(msg); err != nil {
+					 log.Fatal(err)
+				 }
+			 }
+		}
+
+	}
 }

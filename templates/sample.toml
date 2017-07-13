@@ -1,3 +1,6 @@
+# Email targets
+Targets = []
+
 # Email Subject Template
 Subject = "Greetings from $CompanyName$."
 
@@ -10,3 +13,6 @@ This is a sample email. I'm glad that you have received it.
 Thanks,
 $Author$
 """
+
+# Names of files to attach.
+ Attachments = ["resume.pdf"]
