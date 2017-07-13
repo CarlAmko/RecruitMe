@@ -1,0 +1,12 @@
+# Email Subject Template
+Subject = "Greetings from $CompanyName$."
+
+# Email Body Template
+Body = """
+Hello $TargetName$,
+
+This is a sample email. I'm glad that you have received it.
+
+Thanks,
+$Author$
+"""

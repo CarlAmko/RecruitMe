@@ -1,4 +1,8 @@
 # Should resume be attached to emails?
 AttachResume = true
+
 # Format of resume to attach.
 ResumeFormat = "pdf"
+
+# Author of sending email
+Author = "Carl Amko"
