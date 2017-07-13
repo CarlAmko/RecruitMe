@@ -80,7 +80,7 @@ func fillInputResponses() {
 	for _, template := range templates {
 		for input := range template.Inputs {
 			// Attempt to fill input field from config.
-			if !fillTemplateFromConfig(template, input) {
+			if !fillTemplateFromDefaults(template, input) {
 				// Otherwise, request input manually.
 				fmt.Printf("Enter %s: ", input)
 				text, _ := reader.ReadString('\n')
@@ -97,7 +97,7 @@ func fillInputResponses() {
 	}
 }
 
-func fillTemplateFromConfig(template * EmailTemplate, input string) bool{
+func fillTemplateFromDefaults(template * EmailTemplate, input string) bool{
 	lower := strings.ToLower(input)
 	if len(defaults.Author) > 0 && (lower == "author" || lower == "authorname") {
 		template.Inputs[input] = defaults.Author
