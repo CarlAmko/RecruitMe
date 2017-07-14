@@ -20,6 +20,7 @@ type Auth struct {
 
 type Defaults struct {
 	Author string
+	CompanyName string
 }
 
 type EmailTemplate struct {
@@ -35,6 +36,7 @@ var auth Auth
 var defaults Defaults
 
 var templates map[string]*EmailTemplate = make(map[string]*EmailTemplate)
+const EMPTY_STRING string = ""
 
 func parseTemplates(path string, f os.FileInfo, err error) error {
 	// Create RegEx pattern to capture template inputs.
@@ -51,7 +53,7 @@ func parseTemplates(path string, f os.FileInfo, err error) error {
 		}
 
 		// Name the template after the file name.
-		name := strings.Replace(f.Name(), ".toml", "", -1)
+		name := strings.Replace(f.Name(), ".toml", EMPTY_STRING, -1)
 
 		// Extract and store the template's input qualifiers.
 		subjectInputs := pattern.FindAllStringSubmatch(template.Subject, -1)
@@ -59,16 +61,14 @@ func parseTemplates(path string, f os.FileInfo, err error) error {
 		template.Inputs = make(map[string]string)
 
 		for _, input := range subjectInputs {
-			template.Inputs[input[1]] = ""
+			template.Inputs[input[1]] = EMPTY_STRING
 		}
 
 		for _, input := range bodyInputs {
-			template.Inputs[input[1]] = ""
+			template.Inputs[input[1]] = EMPTY_STRING
 		}
 
 		templates[name] = &template
-		fmt.Println(name)
-		fmt.Println(template)
 	}
 
 	return nil
@@ -79,8 +79,8 @@ func fillInputResponses() {
 
 	for _, template := range templates {
 		for input := range template.Inputs {
-			// Attempt to fill input field from config.
-			if !fillTemplateFromDefaults(template, input) {
+			// Check if input information has already been provided.
+			if !prefillTemplate(template, input) {
 				// Otherwise, request input manually.
 				fmt.Printf("Enter %s: ", input)
 				text, _ := reader.ReadString('\n')
@@ -97,19 +97,30 @@ func fillInputResponses() {
 	}
 }
 
-func fillTemplateFromDefaults(template * EmailTemplate, input string) bool{
-	lower := strings.ToLower(input)
-	if len(defaults.Author) > 0 && (lower == "author" || lower == "authorname") {
-		template.Inputs[input] = defaults.Author
-	} else {
-		return false
+func prefillTemplate(template * EmailTemplate, input string) bool{
+	if template.Inputs[input] != EMPTY_STRING {
+
+		lower := strings.ToLower(input)
+		if len(defaults.Author) > 0 && (lower == "author" || lower == "authorname") {
+			template.Inputs[input] = defaults.Author
+		} else if len(defaults.CompanyName) > 0 && (lower == "company" || lower == "companyname") {
+			template.Inputs[input] = defaults.CompanyName
+		} else if len(defaults.CompanyName) > 0 && (lower == "company" || lower == "companyname") {
+			template.Inputs[input] = defaults.CompanyName
+		} else {
+			return false
+		}
 	}
 
 	return true
 }
 
+func fillTarget(template * EmailTemplate, targetName string) {
+	//@TODO
+}
+
 func main() {
-	if _, err := toml.DecodeFile("auth.toml", &auth); err != nil {
+	if _, err := toml.DecodeFile("config/auth.toml", &auth); err != nil {
 		fmt.Printf("Error while parsing auth TOML: %s.\n", err)
 		return
 	}
@@ -125,6 +136,14 @@ func main() {
 		return
 	}
 
+	// Connect to email format database.
+	if err, session := connect(); err != nil {
+		fmt.Printf("Error while attempting to connect to format DB: %s\n", err)
+		return
+	} else {
+		defer session.Close()
+	}
+
 	// Parses all email templates located in "templates" sub-directory.
 	filepath.Walk("./templates", parseTemplates)
 
@@ -136,11 +155,21 @@ func main() {
 		for _, target := range template.Targets {
 			// Ensure that the target email is valid.
 			 if validateEmail(target) {
+				 // Fill in target information.
+				 fillTarget(template, target)
+
+				 // Format email address to target based on company.
+				 err, address := formatEmail(defaults.Author, defaults.CompanyName)
+				 if err != nil {
+					 log.Fatal(err)
+				 }
+				 fmt.Println(address)
+
 				 msg := mg.NewMessage(
 					 fmt.Sprintf("%s <mailgun@%s>", defaults.Author, auth.MailGunDomain),
 					 template.Subject,
 					 template.Body,
-					 target)
+					 address)
 
 				 for _, filename := range template.Attachments {
 					 msg.AddAttachment(fmt.Sprintf("attachments/%s", filename))
@@ -152,6 +181,5 @@ func main() {
 				 }
 			 }
 		}
-
 	}
-}
+ }
