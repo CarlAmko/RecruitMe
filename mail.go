@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"bufio"
-	"log"
 )
 
 type Auth struct {
@@ -29,6 +28,11 @@ type EmailTemplate struct {
 	Body string
 	Attachments []string
 	Inputs map[string]string
+}
+
+type Email struct {
+	Subject string
+	Body string
 }
 
 var mg mailgun.Mailgun
@@ -91,10 +95,6 @@ func fillInputResponses() {
 				text, _ := reader.ReadString('\n')
 				template.Inputs[input] = strings.TrimRight(text, "\n")
 			}
-
-			data := template.Inputs[input]
-			template.Subject = strings.Replace(template.Subject, fmt.Sprintf("$%s$", input), data, -1)
-			template.Body = strings.Replace(template.Body, fmt.Sprintf("$%s$", input), data, -1)
 		}
 	}
 }
@@ -112,17 +112,23 @@ func fillDefaults(template * EmailTemplate, input string) bool {
 	return true
 }
 
-func fillTarget(template * EmailTemplate, targetName string) {
+func generateEmail(template * EmailTemplate, targetName string) (error, *Email) {
 	err, name := generateSalutationFromName(targetName)
 	if err != nil {
-		log.Fatal(err)
+		return err, nil
+	}
+	email := &Email{template.Subject, template.Body}
+	for input := range template.Inputs {
+		data := template.Inputs[input]
+		email.Subject = strings.Replace(email.Subject, fmt.Sprintf("$%s$", input), data, -1)
+		email.Body = strings.Replace(email.Body, fmt.Sprintf("$%s$", input), data, -1)
 	}
 
-	template.Subject = strings.Replace(template.Subject, "#TargetName#", name, -1)
-	template.Body = strings.Replace(template.Body, "#TargetName#", name, -1)
-
-	fmt.Println(template.Subject)
-	fmt.Println(template.Body)
+	email.Subject = strings.Replace(email.Subject, "#TargetName#", name, -1)
+	email.Body = strings.Replace(email.Body, "#TargetName#", name, -1)
+	fmt.Println(email.Subject)
+	fmt.Println(email.Body)
+	return nil, email
 }
 
 func main() {
@@ -161,21 +167,26 @@ func main() {
 		for _, target := range template.Targets {
 			// Ensure that the target email is valid.
 			 if validateEmail(target) {
-				 // Fill in target information.
-				 fillTarget(template, target)
+				 // Fill in template information.
+				 err, email := generateEmail(template, target)
+				 if err != nil {
+					 fmt.Println(err)
+					 continue
+				 }
 
 				 // Format email address to target based on company.
 				 err, address := formatEmail(target, defaults.CompanyName)
 				 if err != nil {
-					 log.Fatal(err)
+					 fmt.Println(err)
+					 continue
 				 }
 				 fmt.Println(address)
 
 				 msg := mg.NewMessage(
 					 fmt.Sprintf("%s <mailgun@%s>", defaults.Author, auth.MailGunDomain),
-					 template.Subject,
-					 template.Body,
-					 address)
+					 email.Subject,
+					 email.Body,
+					 strings.ToLower(address))
 
 				 for _, filename := range template.Attachments {
 					 msg.AddAttachment(fmt.Sprintf("attachments/%s", filename))
@@ -183,7 +194,7 @@ func main() {
 
 				 // Send the message.
 				 if _, _, err := mg.Send(msg); err != nil {
-					 log.Fatal(err)
+					 fmt.Println(err)
 				 }
 			 }
 		}

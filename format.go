@@ -97,5 +97,5 @@ func formatEmail(name string, company string) (error, string){
 	format = strings.Replace(format, "firstinitial", person.FirstName[:1], -1)
 	format = strings.Replace(format, "lastinitial", person.LastName[:1], -1)
 
-	return nil, fmt.Sprintf("%s@%s", strings.TrimSpace(format), selection.Domain)
+	return nil, fmt.Sprintf("%s@%s", strings.TrimSpace(format), strings.TrimSpace(selection.Domain))
 }
