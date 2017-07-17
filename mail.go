@@ -165,7 +165,7 @@ func main() {
 				 fillTarget(template, target)
 
 				 // Format email address to target based on company.
-				 err, address := formatEmail(defaults.Author, defaults.CompanyName)
+				 err, address := formatEmail(target, defaults.CompanyName)
 				 if err != nil {
 					 log.Fatal(err)
 				 }
@@ -182,9 +182,9 @@ func main() {
 				 }
 
 				 // Send the message.
-				 //if _, _, err := mg.Send(msg); err != nil {
-					// log.Fatal(err)
-				 //}
+				 if _, _, err := mg.Send(msg); err != nil {
+					 log.Fatal(err)
+				 }
 			 }
 		}
 	}

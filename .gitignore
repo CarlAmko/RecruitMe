@@ -1,2 +1,5 @@
 /.idea
 config/*
+templates/*.toml
+/template_defaults.toml
+attachments/
