@@ -86,16 +86,16 @@ func formatEmail(name string, company string) (error, string){
 		selection = selectCompany(companies)
 	}
 
-	err, firstname, lastname := splitName(name)
+	err, person := splitName(name)
 	if err != nil {
 		return err, EMPTY_STRING
 	}
 
 	lower := strings.ToLower(selection.Format)
-	format := strings.Replace(lower, "firstname", firstname, -1)
-	format = strings.Replace(format, "lastname", lastname, -1)
-	format = strings.Replace(format, "firstinitial", firstname[:1], -1)
-	format = strings.Replace(format, "lastinitial", lastname[:1], -1)
+	format := strings.Replace(lower, "firstname", person.FirstName, -1)
+	format = strings.Replace(format, "lastname", person.LastName, -1)
+	format = strings.Replace(format, "firstinitial", person.FirstName[:1], -1)
+	format = strings.Replace(format, "lastinitial", person.LastName[:1], -1)
 
 	return nil, fmt.Sprintf("%s@%s", strings.TrimSpace(format), selection.Domain)
 }

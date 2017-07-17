@@ -6,35 +6,29 @@ import (
 	"errors"
 )
 
-type Gender uint8
-const (
-	MALE Gender = iota
-	FEMALE
-	UNKNOWN
-)
-
-func splitName(name string) (error, string, string) {
-	split := strings.Split(name, " ")
-
-	if len(split) < 2 {
-		return errors.New("Name not formatted correctly!"), EMPTY_STRING, EMPTY_STRING
-	}
-	return nil, strings.Title(split[0]), strings.Title(split[1])
+type Person struct {
+	Salutation string
+	FirstName string
+	LastName string
 }
 
-func generateSalutationFromName(name string, gender Gender) (error, string){
-	err, first, last := splitName(name)
+func splitName(name string) (error, *Person) {
+	split := strings.Split(name, " ")
+
+	if count := len(split); count < 2 {
+		return errors.New("Name not formatted correctly!"), nil
+	} else if count == 2 {
+		return nil, &Person{EMPTY_STRING,strings.Title(split[0]), strings.Title(split[1])}
+	} else {
+		return nil, &Person{strings.Title(split[0]), strings.Title(split[1]), strings.Title(split[2])}
+	}
+}
+
+func generateSalutationFromName(name string) (error, string){
+	err, person := splitName(name)
 	if err != nil {
-		var address string
-		if gender == MALE {
-			address = "Mr."
-		} else if gender == FEMALE {
-			address = "Ms."
-		} else {
-			address = first
-		}
-		return nil, fmt.Sprintf("%s %s", address, last)
+		return err, EMPTY_STRING
 	}
 
-	return err, EMPTY_STRING
+	return nil, fmt.Sprintf("%s %s", person.Salutation, person.LastName)
 }

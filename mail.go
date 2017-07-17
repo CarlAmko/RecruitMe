@@ -52,22 +52,27 @@ func parseTemplates(path string, f os.FileInfo, err error) error {
 			return err
 		}
 
-		// Name the template after the file name.
-		name := strings.Replace(f.Name(), ".toml", EMPTY_STRING, -1)
-
 		// Extract and store the template's input qualifiers.
 		subjectInputs := pattern.FindAllStringSubmatch(template.Subject, -1)
 		bodyInputs := pattern.FindAllStringSubmatch(template.Body, -1)
 		template.Inputs = make(map[string]string)
 
 		for _, input := range subjectInputs {
-			template.Inputs[input[1]] = EMPTY_STRING
+			trimmed := input[1]
+			if !fillDefaults(&template, trimmed) {
+				template.Inputs[trimmed] = EMPTY_STRING
+			}
 		}
 
 		for _, input := range bodyInputs {
-			template.Inputs[input[1]] = EMPTY_STRING
+			trimmed := input[1]
+			if !fillDefaults(&template, trimmed) {
+				template.Inputs[trimmed] = EMPTY_STRING
+			}
 		}
 
+		// Name the template after the file name.
+		name := strings.Replace(f.Name(), ".toml", EMPTY_STRING, -1)
 		templates[name] = &template
 	}
 
@@ -80,7 +85,7 @@ func fillInputResponses() {
 	for _, template := range templates {
 		for input := range template.Inputs {
 			// Check if input information has already been provided.
-			if !prefillTemplate(template, input) {
+			if template.Inputs[input] == EMPTY_STRING {
 				// Otherwise, request input manually.
 				fmt.Printf("Enter %s: ", input)
 				text, _ := reader.ReadString('\n')
@@ -91,32 +96,33 @@ func fillInputResponses() {
 			template.Subject = strings.Replace(template.Subject, fmt.Sprintf("$%s$", input), data, -1)
 			template.Body = strings.Replace(template.Body, fmt.Sprintf("$%s$", input), data, -1)
 		}
-
-		fmt.Println(template.Subject)
-		fmt.Println(template.Body)
 	}
 }
 
-func prefillTemplate(template * EmailTemplate, input string) bool{
-	if template.Inputs[input] != EMPTY_STRING {
-
-		lower := strings.ToLower(input)
-		if len(defaults.Author) > 0 && (lower == "author" || lower == "authorname") {
-			template.Inputs[input] = defaults.Author
-		} else if len(defaults.CompanyName) > 0 && (lower == "company" || lower == "companyname") {
-			template.Inputs[input] = defaults.CompanyName
-		} else if len(defaults.CompanyName) > 0 && (lower == "company" || lower == "companyname") {
-			template.Inputs[input] = defaults.CompanyName
-		} else {
-			return false
-		}
+func fillDefaults(template * EmailTemplate, input string) bool {
+	lower := strings.ToLower(input)
+	if len(defaults.Author) > 0 && (lower == "author" || lower == "authorname") {
+		template.Inputs[input] = defaults.Author
+	} else if len(defaults.CompanyName) > 0 && (lower == "company" || lower == "companyname") {
+		template.Inputs[input] = defaults.CompanyName
+	}  else {
+		return false
 	}
 
 	return true
 }
 
 func fillTarget(template * EmailTemplate, targetName string) {
-	//@TODO
+	err, name := generateSalutationFromName(targetName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	template.Subject = strings.Replace(template.Subject, "#TargetName#", name, -1)
+	template.Body = strings.Replace(template.Body, "#TargetName#", name, -1)
+
+	fmt.Println(template.Subject)
+	fmt.Println(template.Body)
 }
 
 func main() {
@@ -176,9 +182,9 @@ func main() {
 				 }
 
 				 // Send the message.
-				 if _, _, err := mg.Send(msg); err != nil {
-					 log.Fatal(err)
-				 }
+				 //if _, _, err := mg.Send(msg); err != nil {
+					// log.Fatal(err)
+				 //}
 			 }
 		}
 	}
